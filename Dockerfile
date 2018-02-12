@@ -1,4 +1,4 @@
-FROM ubuntu:14.10
+FROM ubuntu:16.04
 
 # Build with
 #    docker build -t kelvinlawson/android-studio .
@@ -30,17 +30,18 @@ FROM ubuntu:14.10
 #  Change the device ID in 51-android.rules.
 #  Add "--privileged -v /dev/bus/usb:/dev/bus/usb" to the startup cmdline
 
+RUN dpkg --add-architecture i386
 RUN apt-get update
 
 # Download specific Android Studio bundle (all packages).
 RUN apt-get install -y curl unzip
-RUN curl 'https://dl.google.com/dl/android/studio/ide-zips/2.3.3.0/android-studio-ide-162.4069837-linux.zip' > /tmp/studio.zip && unzip -d /opt /tmp/studio.zip && rm /tmp/studio.zip
+RUN curl 'https://dl.google.com/dl/android/studio/ide-zips/3.0.1.0/android-studio-ide-171.4443003-linux.zip' > /tmp/studio.zip && unzip -d /opt /tmp/studio.zip && rm /tmp/studio.zip
 
 # Install X11
-RUN apt-get install -y x11-apps
+RUN apt-get install -y xorg
 
 # Install prerequisites
-RUN apt-get install -y openjdk-7-jdk lib32z1 lib32ncurses5 lib32bz2-1.0 lib32stdc++6
+RUN apt-get install -y default-jdk libz1 libncurses5 libbz2-1.0:i386 libstdc++6 libbz2-1.0 lib32stdc++6 lib32z1
 
 # Install other useful tools
 RUN apt-get install -y git vim ant
@@ -49,21 +50,15 @@ RUN apt-get install -y git vim ant
 RUN apt-get clean
 RUN apt-get purge
 
-# Set up permissions for X11 access.
-# Replace 1000 with your user / group id.
-RUN export uid=1000 gid=1000 && \
-    mkdir -p /home/developer && \
-    echo "developer:x:${uid}:${gid}:Developer,,,:/home/developer:/bin/bash" >> /etc/passwd && \
-    echo "developer:x:${uid}:" >> /etc/group && \
-    echo "developer ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/developer && \
-    chmod 0440 /etc/sudoers.d/developer && \
-    chown ${uid}:${gid} -R /home/developer
+ENV HOME /home/developer
+RUN useradd --create-home --home-dir $HOME developer \
+	&& gpasswd -a developer developer \
+	&& chown -R developer:developer $HOME
 
 # Set up USB device debugging (device is ID in the rules files)
+RUN mkdir -p /etc/udev/rules.d
 ADD 51-android.rules /etc/udev/rules.d
 RUN chmod a+r /etc/udev/rules.d/51-android.rules
 
 USER developer
-ENV HOME /home/developer
 CMD /opt/android-studio/bin/studio.sh
-
